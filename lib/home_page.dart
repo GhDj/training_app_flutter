@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+
+import 'package:get/get.dart';
+import 'package:layouted/video_info.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -8,12 +12,29 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  List info = [];
+  _initData() async {
+    await DefaultAssetBundle.of(context)
+        .loadString("json/info.json")
+        .then((value) {
+      setState(() {
+        info = json.decode(value);
+      });
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initData();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.lightBlue[50],
       body: Container(
-        padding: const EdgeInsets.only(top: 70, left: 30, right: 30),
+        padding: const EdgeInsets.only(top: 40, left: 30, right: 30),
         child: Column(
           children: [
             Row(
@@ -61,7 +82,13 @@ class _HomePageState extends State<HomePage> {
                 SizedBox(
                   width: 10,
                 ),
-                Icon(Icons.arrow_forward, size: 20, color: Colors.black87),
+                InkWell(
+                  onTap: () {
+                    Get.to(() => VideoInfo());
+                  },
+                  child: Icon(Icons.arrow_forward,
+                      size: 20, color: Colors.black87),
+                ),
               ],
             ),
             SizedBox(
@@ -227,7 +254,96 @@ class _HomePageState extends State<HomePage> {
                       color: Colors.black87),
                 )
               ],
-            )
+            ),
+            Expanded(
+                child: OverflowBox(
+              maxWidth: MediaQuery.of(context).size.width,
+              child: MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true,
+                  child: ListView.builder(
+                      padding: EdgeInsets.only(top: 10),
+                      itemCount: (info.length.toDouble() / 2).toInt(),
+                      itemBuilder: (_, i) {
+                        return Row(
+                          children: [
+                            Container(
+                              height: 170,
+                              width:
+                                  (MediaQuery.of(context).size.width - 90) / 2,
+                              margin: EdgeInsets.only(
+                                  left: 30, bottom: 15, top: 15),
+                              padding: EdgeInsets.only(bottom: 5),
+                              decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(15),
+                                  image: DecorationImage(
+                                      image: AssetImage(info[i * 2]['img'])),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        blurRadius: 3,
+                                        offset: Offset(5, 5),
+                                        color: Colors.blue.shade300
+                                            .withOpacity(0.1)),
+                                    BoxShadow(
+                                        blurRadius: 3,
+                                        offset: Offset(-5, -5),
+                                        color: Colors.blue.shade300
+                                            .withOpacity(0.1))
+                                  ]),
+                              child: Center(
+                                child: Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: Text(
+                                    info[i * 2]['title'],
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        color: Colors.blue.shade400),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              height: 170,
+                              width:
+                                  (MediaQuery.of(context).size.width - 90) / 2,
+                              margin: EdgeInsets.only(
+                                  left: 30, bottom: 15, top: 15),
+                              padding: EdgeInsets.only(bottom: 5),
+                              decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(15),
+                                  image: DecorationImage(
+                                      image:
+                                          AssetImage(info[i * 2 + 1]['img'])),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        blurRadius: 3,
+                                        offset: Offset(5, 5),
+                                        color: Colors.blue.shade300
+                                            .withOpacity(0.1)),
+                                    BoxShadow(
+                                        blurRadius: 3,
+                                        offset: Offset(-5, -5),
+                                        color: Colors.blue.shade300
+                                            .withOpacity(0.1))
+                                  ]),
+                              child: Center(
+                                child: Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: Text(
+                                    info[i * 2 + 1]['title'],
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        color: Colors.blue.shade400),
+                                  ),
+                                ),
+                              ),
+                            )
+                          ],
+                        );
+                      })),
+            ))
           ],
         ),
       ),
