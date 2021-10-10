@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'dart:convert';
 
@@ -17,6 +19,7 @@ class _VideoInfoState extends State<VideoInfo> {
   bool _playArea = false;
   bool _isPlaying = false;
   bool _disposed = false;
+  int _isPlayingIndex = -1;
   VideoPlayerController? _controller;
   _initData() async {
     await DefaultAssetBundle.of(context)
@@ -264,49 +267,177 @@ class _VideoInfoState extends State<VideoInfo> {
     );
   }
 
+  String convertTwo(int value) {
+    return value < 10 ? "0$value" : "$value";
+  }
+
   Widget _controlView(BuildContext context) {
-    return Container(
-      height: 120,
-      width: MediaQuery.of(context).size.width,
-      color: Colors.blue.shade400.withOpacity(0.9),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          FlatButton(
-              onPressed: () async {},
-              child: Icon(
-                Icons.fast_rewind,
-                size: 36,
-                color: Colors.white,
-              )),
-          FlatButton(
-              onPressed: () async {
-                if (_isPlaying) {
-                  setState(() {
-                    _isPlaying = false;
-                  });
-                  _controller?.pause();
-                } else {
-                  setState(() {
-                    _isPlaying = true;
-                  });
+    final noMute = (_controller?.value?.volume ?? 0) > 0;
+    final duration = _duration?.inSeconds ?? 0;
+    final head = _position?.inSeconds ?? 0;
+    final remained = max(0, duration - head);
+    final mins = convertTwo(remained ~/ 60.0);
+    final secs = convertTwo(remained % 60);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+                activeTrackColor: Colors.red[700],
+                inactiveTrackColor: Colors.red[100],
+                trackShape: RoundedRectSliderTrackShape(),
+                trackHeight: 2.0,
+                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
+                thumbColor: Colors.redAccent,
+                overlayColor: Colors.red.withAlpha(32),
+                overlayShape: RoundSliderOverlayShape(overlayRadius: 2),
+                tickMarkShape: RoundSliderTickMarkShape(),
+                activeTickMarkColor: Colors.red[700],
+                inactiveTickMarkColor: Colors.red[100],
+                valueIndicatorShape: PaddleSliderValueIndicatorShape(),
+                valueIndicatorColor: Colors.redAccent,
+                valueIndicatorTextStyle: TextStyle(color: Colors.white)),
+            child: Slider(
+              value: max(0, min(_progress * 100, 100)),
+              min: 0,
+              max: 100,
+              divisions: 100,
+              label: _position?.toString().split(".")[0],
+              onChangeStart: (value) {
+                _controller?.pause();
+              },
+              onChanged: (value) {
+                setState(() {
+                  _progress = value * 0.01;
+                });
+              },
+              onChangeEnd: (value) {
+                final duration = _controller?.value?.duration;
+                if (duration != null) {
+                  var newValue = max(0, min(value, 99) * 0.01);
+                  var millis = (duration.inMilliseconds * newValue).toInt();
+                  _controller?.seekTo(Duration(milliseconds: millis));
                   _controller?.play();
                 }
               },
-              child: Icon(
-                _isPlaying ? Icons.play_arrow : Icons.pause,
-                size: 36,
-                color: Colors.white,
-              )),
-          FlatButton(
-              onPressed: () async {},
-              child: Icon(
-                Icons.fast_forward,
-                size: 36,
-                color: Colors.white,
-              ))
-        ],
-      ),
+            )),
+        Container(
+          height: 40,
+          width: MediaQuery.of(context).size.width,
+          margin: const EdgeInsets.only(bottom: 5),
+          color: Colors.blue.shade400.withOpacity(0.9),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              InkWell(
+                  onTap: () {
+                    if (noMute) {
+                      _controller?.setVolume(0);
+                    } else {
+                      _controller?.setVolume(1.0);
+                    }
+                    setState(() {});
+                  },
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                              offset: Offset(0.0, 0.0),
+                              blurRadius: 4.0,
+                              color: Color.fromARGB(50, 0, 0, 1))
+                        ],
+                      ),
+                      child: Icon(noMute ? Icons.volume_up : Icons.volume_off,
+                          color: Colors.white),
+                    ),
+                  )),
+              FlatButton(
+                  onPressed: () async {
+                    final index = _isPlayingIndex - 1;
+                    if (index >= 0 && info.length >= 0) {
+                      _onTapVideo(index);
+                    } else {
+                      Get.snackbar("Video", "",
+                          snackPosition: SnackPosition.BOTTOM,
+                          icon: Icon(
+                            Icons.face,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                          backgroundColor: Colors.blue.shade400,
+                          colorText: Colors.white,
+                          messageText: Text(
+                            "No more previous videos",
+                            style: TextStyle(fontSize: 20, color: Colors.white),
+                          ));
+                    }
+                  },
+                  child: Icon(
+                    Icons.skip_previous,
+                    size: 36,
+                    color: Colors.white,
+                  )),
+              FlatButton(
+                  onPressed: () async {
+                    if (_isPlaying) {
+                      setState(() {
+                        _isPlaying = false;
+                      });
+                      _controller?.pause();
+                    } else {
+                      setState(() {
+                        _isPlaying = true;
+                      });
+                      _controller?.play();
+                    }
+                  },
+                  child: Icon(
+                    _isPlaying ? Icons.pause : Icons.play_arrow,
+                    size: 36,
+                    color: Colors.white,
+                  )),
+              FlatButton(
+                  onPressed: () async {
+                    final index = _isPlayingIndex + 1;
+                    if (index <= info.length - 1) {
+                      _onTapVideo(index);
+                    } else {
+                      Get.snackbar("Video", "",
+                          snackPosition: SnackPosition.BOTTOM,
+                          icon: Icon(
+                            Icons.face,
+                            size: 30,
+                            color: Colors.white,
+                          ),
+                          backgroundColor: Colors.blue.shade400,
+                          colorText: Colors.white,
+                          messageText: Text(
+                            "You have finished watching all videos",
+                            style: TextStyle(fontSize: 20, color: Colors.white),
+                          ));
+                    }
+                  },
+                  child: Icon(
+                    Icons.skip_next,
+                    size: 36,
+                    color: Colors.white,
+                  )),
+              Text(
+                "$mins:$secs",
+                style: TextStyle(color: Colors.white, shadows: <Shadow>[
+                  Shadow(
+                      offset: Offset(0.0, 0.1),
+                      blurRadius: 4.0,
+                      color: Color.fromARGB(150, 0, 0, 0))
+                ]),
+              )
+            ],
+          ),
+        )
+      ],
     );
   }
 
@@ -420,6 +551,9 @@ class _VideoInfoState extends State<VideoInfo> {
         });
   }
 
+  Duration? _duration;
+  Duration? _position;
+  var _progress = 0.0;
   Widget _playView(BuildContext context) {
     final controller = _controller;
     if (controller != null && controller.value.isInitialized) {
@@ -463,9 +597,30 @@ class _VideoInfoState extends State<VideoInfo> {
     }
     final playing = controller.value.isPlaying;
     _isPlaying = playing;
+
+    if (_duration == null) {
+      _duration = _controller?.value.duration;
+    }
+
+    var duration = _duration;
+
+    if (duration == null) return;
+
+    var position = await controller.position;
+    _position = position;
+
+    final vplaying = controller.value.isPlaying;
+
+    if (vplaying) {
+      if (_disposed) return;
+      setState(() {
+        _progress = position!.inMilliseconds.ceilToDouble() /
+            duration.inMilliseconds.ceilToDouble();
+      });
+    }
   }
 
-  _onTapVideo(index) {
+  _onTapVideo(index) async {
     final controller = VideoPlayerController.network(info[index]["videoUrl"]);
     final old = _controller;
     _controller = controller;
@@ -477,6 +632,7 @@ class _VideoInfoState extends State<VideoInfo> {
     controller
       ..initialize().then((_) {
         old?.dispose();
+        _isPlayingIndex = index;
         controller.addListener(_onControllerUpdate);
         controller.play();
         setState(() {});
